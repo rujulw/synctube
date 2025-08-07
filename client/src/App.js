@@ -1,4 +1,3 @@
-// client/src/App.js
 import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import SynctubePlayer from './SynctubePlayer';
@@ -14,16 +13,29 @@ function App() {
 
   useEffect(() => {
     socket.on('connect', () => {
-      console.log('Connected to server:', socket.id);
+      console.log('✅ Connected to server:', socket.id);
     });
 
-    return () => {
+    socket.on('video-loaded', (id) => {
+      console.log('📺 Received video ID from other user:', id);
+      setVideoId(id);
+    });
+
+    // Clean up socket on page unload
+    const handleBeforeUnload = () => {
       socket.disconnect();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
 
   const handleJoin = () => {
     if (roomId.trim()) {
+      console.log('🚪 Joining room:', roomId);
       socket.emit('join-room', roomId);
       setJoined(true);
     }
@@ -32,7 +44,9 @@ function App() {
   const handleLoadVideo = () => {
     const id = extractVideoId(url);
     if (id) {
+      console.log('🎬 Loading video with ID:', id);
       setVideoId(id);
+      socket.emit('load-video', { roomId, videoId: id });
     } else {
       alert('Invalid YouTube URL');
     }
@@ -40,14 +54,13 @@ function App() {
 
   const handlePlayerReady = (player) => {
     playerRef.current = player;
-    console.log('Player ready');
+    console.log('✅ Player ready');
   };
 
   const handlePlayerStateChange = (event) => {
-    console.log('Player state changed:', event.data);
+    console.log('🎮 Player state changed:', event.data);
   };
 
-  // Helper: Extract video ID from full URL
   const extractVideoId = (ytUrl) => {
     try {
       const urlObj = new URL(ytUrl);
@@ -74,6 +87,7 @@ function App() {
             value={roomId}
             onChange={(e) => setRoomId(e.target.value)}
             placeholder="Room ID"
+            autoFocus
             style={{ padding: '0.5rem', marginRight: '1rem' }}
           />
           <button onClick={handleJoin}>Join</button>
