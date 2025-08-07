@@ -1,13 +1,16 @@
-// client/src/App.jsx
-import { useEffect, useState } from 'react';
+// client/src/App.js
+import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
+import SynctubePlayer from './SynctubePlayer';
 
-const socket = io('http://localhost:3001'); // Backend server
+const socket = io('http://localhost:3001'); // Connect to backend
 
 function App() {
   const [roomId, setRoomId] = useState('');
   const [joined, setJoined] = useState(false);
+  const playerRef = useRef(null);
 
+  // Connect once on mount
   useEffect(() => {
     socket.on('connect', () => {
       console.log('Connected to server:', socket.id);
@@ -25,6 +28,16 @@ function App() {
     }
   };
 
+  const handlePlayerReady = (player) => {
+    playerRef.current = player;
+    console.log('Player ready');
+  };
+
+  const handlePlayerStateChange = (event) => {
+    console.log('Player state changed:', event.data);
+    // We'll handle sync logic here soon
+  };
+
   return (
     <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
       {!joined ? (
@@ -40,8 +53,12 @@ function App() {
         </div>
       ) : (
         <div>
-          <h2>Joined room: {roomId}</h2>
-          <p>You are now connected via WebSocket!</p>
+          <h2>Room: {roomId}</h2>
+          <SynctubePlayer
+            videoId="R0hm96lL1CQ" // Default video
+            onPlayerReady={handlePlayerReady}
+            onPlayerStateChange={handlePlayerStateChange}
+          />
         </div>
       )}
     </div>
