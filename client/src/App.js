@@ -13,29 +13,44 @@ function App() {
 
   useEffect(() => {
     socket.on('connect', () => {
-      console.log('✅ Connected to server:', socket.id);
+      console.log('Connected to server:', socket.id);
     });
-
+  
     socket.on('video-loaded', (id) => {
-      console.log('📺 Received video ID from other user:', id);
+      console.log('Received video ID from other user:', id);
       setVideoId(id);
     });
-
+  
+    socket.on('video-event', (event) => {
+      console.log('Received video event from other user:', event);
+      if (playerRef.current) {
+        if (event.type === 'play') {
+          playerRef.current.playVideo();
+        } else if (event.type === 'pause') {
+          playerRef.current.pauseVideo();
+        }
+      }
+    });
+  
     // Clean up socket on page unload
     const handleBeforeUnload = () => {
       socket.disconnect();
     };
-
+  
     window.addEventListener('beforeunload', handleBeforeUnload);
-
+  
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      socket.off('connect');
+      socket.off('video-loaded');
+      socket.off('video-event');
     };
   }, []);
+  
 
   const handleJoin = () => {
     if (roomId.trim()) {
-      console.log('🚪 Joining room:', roomId);
+      console.log('Joining room:', roomId);
       socket.emit('join-room', roomId);
       setJoined(true);
     }
@@ -44,7 +59,7 @@ function App() {
   const handleLoadVideo = () => {
     const id = extractVideoId(url);
     if (id) {
-      console.log('🎬 Loading video with ID:', id);
+      console.log('Loading video with ID:', id);
       setVideoId(id);
       socket.emit('load-video', { roomId, videoId: id });
     } else {
@@ -54,12 +69,22 @@ function App() {
 
   const handlePlayerReady = (player) => {
     playerRef.current = player;
-    console.log('✅ Player ready');
+    console.log('Player ready');
   };
 
   const handlePlayerStateChange = (event) => {
-    console.log('🎮 Player state changed:', event.data);
-  };
+    console.log('Player state changed:', event.data);
+  
+    // 1 = play, 2 = pause
+    if (event.data === 1 || event.data === 2) {
+      socket.emit('video-event', {
+        roomId,
+        event: {
+          type: event.data === 1 ? 'play' : 'pause',
+        },
+      });
+    }
+  };  
 
   const extractVideoId = (ytUrl) => {
     try {

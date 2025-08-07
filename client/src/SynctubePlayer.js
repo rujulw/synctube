@@ -1,40 +1,22 @@
-import { useEffect, useRef } from 'react';
+import YouTube from 'react-youtube';
 
-const YouTubePlayer = ({ videoId, onPlayerReady, onPlayerStateChange }) => {
-  const playerRef = useRef(null);
+function SynctubePlayer({ videoId, onPlayerReady, onPlayerStateChange }) {
+  const opts = {
+    height: '390',
+    width: '640',
+    playerVars: {
+      autoplay: 0,
+    },
+  };
 
-  useEffect(() => {
-    // Load the IFrame API if it doesn't exist
-    if (!window.YT) {
-      const tag = document.createElement('script');
-      tag.src = 'https://www.youtube.com/iframe_api';
-      document.body.appendChild(tag);
-    } else {
-      loadPlayer();
-    }
+  return (
+    <YouTube
+      videoId={videoId}
+      opts={opts}
+      onReady={(e) => onPlayerReady(e.target)}
+      onStateChange={onPlayerStateChange}
+    />
+  );
+}
 
-    window.onYouTubeIframeAPIReady = loadPlayer;
-
-    function loadPlayer() {
-      if (playerRef.current) {
-        new window.YT.Player(playerRef.current, {
-          height: '390',
-          width: '640',
-          videoId: videoId,
-          events: {
-            onReady: (event) => {
-              onPlayerReady(event.target);
-            },
-            onStateChange: (event) => {
-              onPlayerStateChange(event);
-            },
-          },
-        });
-      }
-    }
-  }, [videoId]);
-
-  return <div ref={playerRef}></div>;
-};
-
-export default YouTubePlayer;
+export default SynctubePlayer;
