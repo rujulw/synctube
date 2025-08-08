@@ -1,22 +1,26 @@
-import YouTube from 'react-youtube';
+import YouTube from "react-youtube";
 
-function SynctubePlayer({ videoId, onPlayerReady, onPlayerStateChange }) {
+export default function SynctubePlayer({ videoId, onPlayerReady, onPlayerStateChange }) {
   const opts = {
-    height: '390',
-    width: '640',
+    width: "100%",
+    height: "100%",
     playerVars: {
       autoplay: 0,
+      modestbranding: 1,
+      rel: 0,
     },
   };
 
   return (
-    <YouTube
-      videoId={videoId}
-      opts={opts}
-      onReady={(e) => onPlayerReady(e.target)}
-      onStateChange={onPlayerStateChange}
-    />
+    <div className="w-full h-full">
+      <YouTube
+        videoId={videoId}
+        opts={opts}
+        onReady={(e) => onPlayerReady(e.target)}
+        onStateChange={onPlayerStateChange}
+        className="w-full h-full"
+        iframeClassName="w-full h-full"
+      />
+    </div>
   );
 }
-
-export default SynctubePlayer;
