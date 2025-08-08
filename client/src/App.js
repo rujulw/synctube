@@ -5,7 +5,7 @@ import Footer from "./components/Footer";
 import LandingPage from "./pages/LandingPage";
 import SynctubePlayer from "./components/SynctubePlayer";
 
-const socket = io("http://localhost:3001");
+const socket = io("https://synctube-backend.onrender.com");
 
 function App() {
   const [joined, setJoined] = useState(false);
