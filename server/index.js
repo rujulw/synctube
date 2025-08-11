@@ -39,6 +39,12 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('video-event', event);
   });
 
+  // Handle chat messages (no history stored)
+  socket.on('chat-message', ({ roomId, msg }) => {
+    console.log(`Message in ${roomId} from ${msg.user}: ${msg.text}`);
+    socket.to(roomId).emit('chat-message', msg);
+  });
+
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
   });
