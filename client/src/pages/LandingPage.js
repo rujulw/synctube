@@ -1,13 +1,24 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function LandingPage({ onCreateRoom, onJoinRoom }) {
   const [roomCode, setRoomCode] = useState("");
+  const [username, setUsername] = useState("");
+
+  // Load stored username on first render
+  useEffect(() => {
+    const storedName = localStorage.getItem("username");
+    if (storedName) setUsername(storedName);
+  }, []);
+
+  const handleUsernameChange = (e) => {
+    setUsername(e.target.value);
+    localStorage.setItem("username", e.target.value);
+  };
 
   return (
     <div
       className="min-h-screen flex flex-col md:flex-row text-white"
       style={{
-      
         backgroundRepeat: "repeat",
       }}
     >
@@ -26,10 +37,21 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }) {
       <div className="flex-1 flex justify-center items-center p-8">
         <div className="w-full max-w-lg bg-[#1e1f22] rounded-2xl shadow-lg border border-purple-700 transform transition duration-300 hover:scale-105 hover:shadow-[0_0_25px_rgba(168,85,247,0.6)]">
           <div className="p-8 flex flex-col items-center space-y-6">
+
+            {/* Username Input */}
+            <input
+              value={username}
+              onChange={handleUsernameChange}
+              placeholder="enter your username"
+              className="w-full px-4 py-3 rounded-xl bg-[#2b2d31] border border-gray-700 text-white 
+                         focus:outline-none focus:ring-2 focus:ring-purple-500 lowercase"
+            />
+
             {/* Create Room Button */}
             <button
-              onClick={onCreateRoom}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-lg font-semibold py-3 rounded-xl transition"
+              onClick={() => onCreateRoom(username)}
+              disabled={!username.trim()}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-lg font-semibold py-3 rounded-xl transition disabled:opacity-50"
             >
               create room
             </button>
@@ -49,8 +71,9 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }) {
               className="w-full px-4 py-3 rounded-xl bg-[#2b2d31] border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 lowercase"
             />
             <button
-              onClick={() => onJoinRoom(roomCode)}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-lg font-semibold py-3 rounded-xl transition"
+              onClick={() => onJoinRoom(roomCode, username)}
+              disabled={!username.trim()}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-lg font-semibold py-3 rounded-xl transition disabled:opacity-50"
             >
               join room
             </button>

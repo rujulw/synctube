@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import SynctubePlayer from "../components/SynctubePlayer";
 
-export default function RoomPage({ roomId, socket }) {
+export default function RoomPage({ roomId, socket, username }) {
   const [url, setUrl] = useState("");
   const [videoId, setVideoId] = useState("");
   const [messages, setMessages] = useState([]);
@@ -69,7 +69,7 @@ export default function RoomPage({ roomId, socket }) {
 
   const sendMessage = () => {
     if (chatInput.trim() !== "") {
-      const msg = { user: "you", text: chatInput };
+      const msg = { user: username, text: chatInput };
       socket.emit("chat-message", { roomId, msg });
       setMessages((prev) => [...prev, msg]);
       setChatInput("");
@@ -148,7 +148,10 @@ export default function RoomPage({ roomId, socket }) {
           >
             {messages.map((m, i) => (
               <div key={i} className="bg-[#2b2d31] p-2 rounded-lg">
-                <strong className="text-purple-400">{m.user}:</strong> {m.text}
+                <strong className="text-purple-400">
+                  {m.user === username ? "You" : m.user}:
+                </strong>{" "}
+                {m.text}
               </div>
             ))}
           </div>
