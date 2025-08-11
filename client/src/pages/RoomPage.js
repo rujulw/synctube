@@ -26,38 +26,52 @@ export default function RoomPage({ roomId, socket, username }) {
   const loadVideo = () => {
     const id = extractVideoId(url);
     if (id) {
-      setVideoId(id);
       socket.emit("load-video", { roomId, videoId: id });
+      setUrl("");
     } else {
       alert("Invalid YouTube URL");
     }
   };
 
   useEffect(() => {
-    socket.on("video-loaded", (id) => {
+    const handleVideoLoaded = (id) => {
       setVideoId(id);
-    });
+      if (playerRef.current && playerRef.current.loadVideoById) {
+        playerRef.current.loadVideoById(id);
+      }
+    };
 
-    socket.on("video-event", (event) => {
+    const handleVideoEvent = (event) => {
       if (playerRef.current) {
         ignoreNextEvent.current = true;
         if (event.type === "play") playerRef.current.playVideo();
         else if (event.type === "pause") playerRef.current.pauseVideo();
       }
-    });
+    };
 
-    socket.on("chat-message", (msg) => {
+    const handleChatMessage = (msg) => {
       setMessages((prev) => [...prev, msg]);
-    });
+    };
+
+    const handleChatHistory = (history) => {
+      setMessages(history);
+    };
+
+    socket.on("video-loaded", handleVideoLoaded);
+    socket.on("video-event", handleVideoEvent);
+    socket.on("chat-message", handleChatMessage);
+    socket.on("chat-history", handleChatHistory);
+
+    socket.emit("join-room", roomId);
 
     return () => {
-      socket.off("video-loaded");
-      socket.off("video-event");
-      socket.off("chat-message");
+      socket.off("video-loaded", handleVideoLoaded);
+      socket.off("video-event", handleVideoEvent);
+      socket.off("chat-message", handleChatMessage);
+      socket.off("chat-history", handleChatHistory);
     };
-  }, [socket]);
+  }, [socket, roomId]);
 
-  // Auto-scroll chat to bottom on new messages
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTo({
@@ -71,7 +85,6 @@ export default function RoomPage({ roomId, socket, username }) {
     if (chatInput.trim() !== "") {
       const msg = { user: username, text: chatInput };
       socket.emit("chat-message", { roomId, msg });
-      setMessages((prev) => [...prev, msg]);
       setChatInput("");
     }
   };
@@ -148,10 +161,7 @@ export default function RoomPage({ roomId, socket, username }) {
           >
             {messages.map((m, i) => (
               <div key={i} className="bg-[#2b2d31] p-2 rounded-lg">
-                <strong className="text-purple-400">
-  {m.user}:
-</strong>{" "}
-{m.text}
+                <strong className="text-purple-400">{m.user}:</strong> {m.text}
               </div>
             ))}
           </div>

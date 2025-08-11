@@ -6,11 +6,14 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*' }
+  cors: { 
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
 });
 
-// Store the last videoId for each room
-const roomVideoMap = {};
+// Store room data
+const rooms = new Map(); // roomId -> { videoId, messages }
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
@@ -19,30 +22,53 @@ io.on('connection', (socket) => {
     socket.join(roomId);
     console.log(`User ${socket.id} joined room ${roomId}`);
 
-    // Send last videoId to new user (if it exists)
-    if (roomVideoMap[roomId]) {
-      socket.emit('video-loaded', roomVideoMap[roomId]);
+    // Initialize room if it doesn't exist
+    if (!rooms.has(roomId)) {
+      rooms.set(roomId, { videoId: null, messages: [] });
+    }
+
+    const room = rooms.get(roomId);
+    
+    // Send current room state to new user
+    if (room.videoId) {
+      socket.emit('video-loaded', room.videoId);
+    }
+    
+    // Send chat history
+    if (room.messages.length > 0) {
+      socket.emit('chat-history', room.messages);
     }
   });
 
   socket.on('load-video', ({ roomId, videoId }) => {
-    console.log(`User ${socket.id} loaded video ${videoId} in room ${roomId}`);
+    console.log(`Loading video ${videoId} in room ${roomId}`);
+    
+    if (!rooms.has(roomId)) {
+      rooms.set(roomId, { videoId, messages: [] });
+    } else {
+      rooms.get(roomId).videoId = videoId;
+    }
 
-    // Save the videoId for this room
-    roomVideoMap[roomId] = videoId;
-
-    // Broadcast to others in room
-    socket.to(roomId).emit('video-loaded', videoId);
+    // Broadcast to everyone in the room including sender
+    io.to(roomId).emit('video-loaded', videoId);
   });
 
   socket.on('video-event', ({ roomId, event }) => {
     socket.to(roomId).emit('video-event', event);
   });
 
-  // Handle chat messages (no history stored)
   socket.on('chat-message', ({ roomId, msg }) => {
     console.log(`Message in ${roomId} from ${msg.user}: ${msg.text}`);
-    socket.to(roomId).emit('chat-message', msg);
+    
+    if (!rooms.has(roomId)) {
+      rooms.set(roomId, { videoId: null, messages: [] });
+    }
+    
+    const room = rooms.get(roomId);
+    room.messages.push(msg);
+    
+    // Broadcast to everyone in the room including sender
+    io.to(roomId).emit('chat-message', msg);
   });
 
   socket.on('disconnect', () => {
@@ -50,8 +76,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// Use Render's dynamic port or fallback to 3001 locally
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log(`Socket.IO server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
