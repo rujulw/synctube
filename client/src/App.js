@@ -28,7 +28,7 @@ function App() {
   const joinRoom = (code, name) => {
     if (code.trim() && name.trim()) {
       setUsername(name);
-      socket.emit("join-room", code.toUpperCase());
+      socket.emit("join-room", code.toLowerCase());
       setRoomId(code.toUpperCase());
       setJoined(true);
     }

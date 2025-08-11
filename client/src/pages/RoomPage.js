@@ -10,7 +10,6 @@ export default function RoomPage({ roomId, socket, username }) {
   const ignoreNextEvent = useRef(false);
   const chatContainerRef = useRef(null);
 
-  // Extract YouTube video ID from URL
   const extractVideoId = (ytUrl) => {
     try {
       const urlObj = new URL(ytUrl);
@@ -39,10 +38,32 @@ export default function RoomPage({ roomId, socket, username }) {
     });
 
     socket.on("video-event", (event) => {
-      if (playerRef.current) {
-        ignoreNextEvent.current = true;
-        if (event.type === "play") playerRef.current.playVideo();
-        else if (event.type === "pause") playerRef.current.pauseVideo();
+      if (!playerRef.current) return;
+
+      ignoreNextEvent.current = true;
+
+      // Seek to correct position first
+      if (typeof event.time === "number") {
+        playerRef.current.seekTo(event.time, true);
+      }
+
+      if (event.type === "play") {
+        playerRef.current.playVideo();
+      } else if (event.type === "pause") {
+        playerRef.current.pauseVideo();
+      }
+    });
+
+    socket.on("video-state", (state) => {
+      if (!playerRef.current) return;
+      setVideoId(state.videoId);
+
+      ignoreNextEvent.current = true;
+      playerRef.current.seekTo(state.time, true);
+      if (state.isPlaying) {
+        playerRef.current.playVideo();
+      } else {
+        playerRef.current.pauseVideo();
       }
     });
 
@@ -53,11 +74,11 @@ export default function RoomPage({ roomId, socket, username }) {
     return () => {
       socket.off("video-loaded");
       socket.off("video-event");
+      socket.off("video-state");
       socket.off("chat-message");
     };
   }, [socket]);
 
-  // Auto-scroll chat to bottom on new messages
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTo({
@@ -78,11 +99,8 @@ export default function RoomPage({ roomId, socket, username }) {
 
   return (
     <div className="relative w-full h-screen bg-[#0f0f0f] text-white overflow-hidden">
-      {/* Floating Room Code Card */}
-      <div className="absolute top-5 left-4 bg-[#1e1f22] border border-purple-500/60 
-                      rounded-2xl shadow-lg px-6 py-3
-                      backdrop-blur-sm transition transform hover:scale-105 
-                      hover:shadow-[0_0_25px_rgba(168,85,247,0.9)] flex flex-col items-center gap-4 z-20">
+      {/* Floating Room Code */}
+      <div className="absolute top-5 left-4 bg-[#1e1f22] border border-purple-500/60 rounded-2xl shadow-lg px-6 py-3 backdrop-blur-sm transition transform hover:scale-105 hover:shadow-[0_0_25px_rgba(168,85,247,0.9)] flex flex-col items-center gap-4 z-20">
         <h2 className="text-lg font-semibold text-purple-200 tracking-wide lowercase">
           room code:
         </h2>
@@ -101,8 +119,7 @@ export default function RoomPage({ roomId, socket, username }) {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="Paste YouTube URL"
-          className="flex-1 px-4 py-3 rounded-xl bg-[#2b2d31] border border-gray-700 text-white 
-                     focus:outline-none focus:ring-2 focus:ring-purple-500 lowercase"
+          className="flex-1 px-4 py-3 rounded-xl bg-[#2b2d31] border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 lowercase"
         />
         <button
           onClick={loadVideo}
@@ -112,13 +129,12 @@ export default function RoomPage({ roomId, socket, username }) {
         </button>
       </div>
 
-      {/* Main Content: Video + Chat */}
+      {/* Main Content */}
       <div className="w-full h-full flex px-4 pt-6 pb-10 gap-4">
-        {/* Video Player */}
+        {/* Video */}
         <div className="flex-1 flex justify-center items-center">
           {videoId && (
-            <div className="w-full max-w-5xl aspect-video rounded-xl overflow-hidden shadow-lg 
-                            border border-purple-700 hover:shadow-[0_0_25px_rgba(168,85,247,0.6)] transition">
+            <div className="w-full max-w-5xl aspect-video rounded-xl overflow-hidden shadow-lg border border-purple-700 hover:shadow-[0_0_25px_rgba(168,85,247,0.6)] transition">
               <SynctubePlayer
                 videoId={videoId}
                 onPlayerReady={(player) => (playerRef.current = player)}
@@ -127,44 +143,40 @@ export default function RoomPage({ roomId, socket, username }) {
                     ignoreNextEvent.current = false;
                     return;
                   }
-                  socket.emit("video-event", {
-                    roomId,
-                    event: {
-                      type: event.data === 1 ? "play" : "pause",
-                    },
-                  });
+                  const time = playerRef.current?.getCurrentTime() || 0;
+                  if (event.data === 1) {
+                    socket.emit("video-event", {
+                      roomId,
+                      event: { type: "play", time },
+                    });
+                  } else if (event.data === 2) {
+                    socket.emit("video-event", {
+                      roomId,
+                      event: { type: "pause", time },
+                    });
+                  }
                 }}
               />
             </div>
           )}
         </div>
 
-        {/* Chat Sidebar */}
+        {/* Chat */}
         <div className="w-90 bg-[#1e1f22] border border-purple-500/60 rounded-xl flex flex-col mt-4 h-[calc(100%-5rem)]">
-          {/* Messages */}
-          <div
-            ref={chatContainerRef}
-            className="flex-1 overflow-y-auto p-4 space-y-2"
-          >
+          <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-2">
             {messages.map((m, i) => (
               <div key={i} className="bg-[#2b2d31] p-2 rounded-lg">
-                <strong className="text-purple-400">
-                  {m.user === username ? "You" : m.user}:
-                </strong>{" "}
-                {m.text}
+                <strong className="text-purple-400">{m.user}:</strong> {m.text}
               </div>
             ))}
           </div>
-
-          {/* Input */}
           <div className="p-3 border-t border-purple-500/40 flex gap-2">
             <input
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendMessage()}
               placeholder="type a message.."
-              className="flex-1 px-3 py-2 rounded-lg bg-[#2b2d31] border border-gray-700 text-white 
-                         focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="flex-1 px-3 py-2 rounded-lg bg-[#2b2d31] border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
             <button
               onClick={sendMessage}
